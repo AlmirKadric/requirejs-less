@@ -48,23 +48,12 @@ define([
 
     var style = {
 
-        _compile: function(less, url, contents, parseConfig, outputConfig, onError, onSuccess) {
-            // Create the parser.
-            parseConfig.filename = url;
-            var parser = new (less.Parser)(parseConfig);
-            // Run the parser.
-            parser.parse(contents, function(err, tree) {
-                if (err) {
-                    onError(new Error("LESS parse error in " + err.filename +  " on line " + err.line + ", column " + err.column + ": " + err.message));
-                } else {
-                    try {
-                        var css = tree.toCSS(outputConfig);
-                        onSuccess(css);
-                    } catch(ex) {
-                        onError(ex);
-                    }
-                }
-            });
+        _compile: function(less, contents, options, onError, onSuccess) {
+            less.render(contents, options).then(function (output) {
+                onSuccess(output.css);
+            }, function (error) {
+                onError(new Error("LESS parse error in " + err.filename +  " on line " + err.line + ", column " + err.column + ": " + err.message));
+            })
         },
 
         _injectCSS: function(css) {
@@ -85,12 +74,12 @@ define([
             var url = lessUrl + name;
             text.get(url, function(contents) {
                 // Compile the LESS.
-                style._compile(less, url, contents, {
+                style._compile(less, contents, {
+                    filename: url,
                     syncImport: true,
                     env: "production",
                     paths: [lessUrl],
-                    rootpath: lessRootPath
-                }, {
+                    rootpath: lessRootPath,
                     compress: true
                 }, onload.error, function(css) {
                     // Store the generated CSS.
@@ -106,11 +95,12 @@ define([
             var url = lessUrl + name;
             require(["less"], function(less) {
                 text.get(url, function(contents) {
-                    style._compile(less, url, contents, {
+                    style._compile(less, contents, {
+                        filename: url,
                         env: "development",
                         paths: [lessUrl],
                         rootpath: lessUrl
-                    }, {}, onload.error, function(css) {
+                    }, onload.error, function(css) {
                         style._injectCSS(css);
                         onload(css);
                     });
